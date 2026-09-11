@@ -36,8 +36,10 @@ Then, if the priority torrents aren't already at the top of the queue, they're b
 
 - **qBittorrent "Torrent Queueing" must be ENABLED** (Options → BitTorrent), or queue
   priority does nothing. prioritizarr warns in the logs if it's disabled.
-- **`private`/`public` modes need qBittorrent 5.0+** (for the `is_private` flag). On older
-  builds, use `PRIORITY_TRACKERS` instead — prioritizarr warns once if `is_private` is
+- **`private`/`public` modes need qBittorrent 5.0+** (for the privacy flag in
+  `torrents/info`). Different versions expose it under different names — prioritizarr reads
+  both `private` (true/null, qBittorrent 5.2.x) and `is_private` (boolean). On builds that
+  expose neither, use `PRIORITY_TRACKERS` instead; prioritizarr warns once if the flag is
   unavailable.
 - Network access to qBittorrent. If your subnet (including the Docker bridge range, e.g.
   `172.16.0.0/12`) is whitelisted in qBittorrent's "bypass authentication" option, no

@@ -60,8 +60,23 @@ async function trackerMatches(qbit, hash, needles) {
   return false;
 }
 
+// Read the privacy flag from a torrents/info entry. qBittorrent versions differ:
+//   - some expose `is_private` (boolean)
+//   - qBittorrent 5.2.x exposes `private` (true for private, null/absent otherwise)
+// Returns: true (private), false (public), or undefined (flag not present at all).
+function privacyFromListEntry(t) {
+  if ('is_private' in t && t.is_private !== null) return t.is_private === true;
+  if ('private' in t) return t.private === true; // true => private; null/false => public
+  return undefined; // neither field present in the list
+}
+
+// True if at least one torrent in the list carries a usable privacy flag.
+function listExposesPrivacy(torrents) {
+  return torrents.some((t) => 'is_private' in t || 'private' in t);
+}
+
 // Decide whether a single torrent should be prioritised.
-async function shouldPrioritise(qbit, t, hasIsPrivate) {
+async function shouldPrioritise(qbit, t) {
   // Exclusions win outright.
   if (await trackerMatches(qbit, t.hash, config.excludeTrackers)) {
     return { yes: false };
@@ -72,12 +87,14 @@ async function shouldPrioritise(qbit, t, hasIsPrivate) {
     return { yes: true, reason: 'tracker-list' };
   }
 
+  const isPrivate = privacyFromListEntry(t); // true | false | undefined
+
   switch (config.prioritizeMode) {
     case 'private':
-      if (hasIsPrivate && t.is_private === true) return { yes: true, reason: 'private' };
+      if (isPrivate === true) return { yes: true, reason: 'private' };
       return { yes: false };
     case 'public':
-      if (hasIsPrivate && t.is_private === false) return { yes: true, reason: 'public' };
+      if (isPrivate === false) return { yes: true, reason: 'public' };
       return { yes: false };
     case 'trackers':
     case 'none':
@@ -97,17 +114,17 @@ async function runOnce(qbit, ctx) {
     return;
   }
 
-  const hasIsPrivate = torrents.some((t) => 'is_private' in t);
+  const hasPrivacyFlag = listExposesPrivacy(torrents);
   if (
     (config.prioritizeMode === 'private' || config.prioritizeMode === 'public') &&
-    !hasIsPrivate &&
+    !hasPrivacyFlag &&
     !ctx.warnedNoIsPrivate
   ) {
     log(
       'warn',
-      `PRIORITIZE_MODE=${config.prioritizeMode} needs the is_private flag ` +
-        '(qBittorrent 5.0+), which this instance does not expose. ' +
-        'Only PRIORITY_TRACKERS matching will take effect.',
+      `PRIORITIZE_MODE=${config.prioritizeMode} needs the private flag ` +
+        '(qBittorrent 5.0+ exposes "private" or "is_private" in torrents/info), ' +
+        'which this instance does not expose. Only PRIORITY_TRACKERS matching will take effect.',
     );
     ctx.warnedNoIsPrivate = true;
   }
@@ -124,7 +141,7 @@ async function runOnce(qbit, ctx) {
 
   const toPrioritise = [];
   for (const t of active) {
-    const decision = await shouldPrioritise(qbit, t, hasIsPrivate);
+    const decision = await shouldPrioritise(qbit, t);
     if (decision.yes) {
       toPrioritise.push({ hash: t.hash, name: t.name, position: t.priority, reason: decision.reason });
     }
