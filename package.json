@@ -1,0 +1,13 @@
+{
+  "name": "prioritizarr",
+  "version": "1.0.0",
+  "description": "Keeps private-tracker (or listed-tracker) torrents at the top of the qBittorrent download queue.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
