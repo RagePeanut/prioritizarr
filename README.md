@@ -67,11 +67,37 @@ Then, if the priority torrents aren't already at the top of the queue, they're b
 Tracker matching is a case-insensitive **substring** match against each torrent's tracker
 URLs (e.g. `beyondhd.me` matches `https://beyondhd.me/announce`).
 
+## Install from GHCR
+
+A multi-arch image (`linux/amd64` + `linux/arm64`) is published to the GitHub
+Container Registry on every push to `main` and every version tag:
+
+```bash
+docker run -d --name prioritizarr \
+  --restart unless-stopped \
+  -e QBIT_URL="http://<qbittorrent-host>:8080" \
+  -e PRIORITIZE_MODE=private \
+  -e DRY_RUN=true \
+  ghcr.io/ragepeanut/prioritizarr:latest
+```
+
+Available tags:
+
+| Tag | Points to |
+|-----|-----------|
+| `latest` | Newest build from `main` |
+| `1.2.3`, `1.2` | A specific released version (from a `v1.2.3` Git tag) |
+| `main` | Latest `main` build |
+| `sha-<short-sha>` | An exact commit |
+
+Pin to a version tag (e.g. `ghcr.io/ragepeanut/prioritizarr:1.2`) for
+reproducible deploys, or track `latest` for the newest build.
+
 ## docker-compose
 
 ```yaml
   prioritizarr:
-    build: /volume1/docker/prioritizarr-src   # or image: <registry>/prioritizarr
+    image: ghcr.io/ragepeanut/prioritizarr:latest   # or `build: /path/to/prioritizarr-src`
     container_name: prioritizarr
     environment:
       - TZ=Europe/Paris
@@ -108,6 +134,31 @@ node src/index.js
   when priority torrents already occupy the top queue positions.
 - **Stateless:** safe to restart anytime.
 - **Safe by default:** `DRY_RUN=true` out of the box — inspect the logs, then set it false.
+
+## Publishing (maintainers)
+
+Images are published to GHCR automatically by
+[`.github/workflows/publish.yml`](.github/workflows/publish.yml):
+
+- **On push to `main`** → `ghcr.io/ragepeanut/prioritizarr:latest` (and `:main`).
+- **On a version tag** (`git tag v1.2.3 && git push --tags`) → `:1.2.3`,
+  `:1.2`, and `:latest`.
+- **Manually** from the repo's **Actions → Publish Docker image to GHCR → Run
+  workflow**.
+
+The workflow authenticates with the built-in `GITHUB_TOKEN`, so **no secrets
+need to be configured** — it just needs `packages: write` permission, which the
+workflow already requests.
+
+**One-time setup — make the package public.** By default a newly published
+GHCR package is private. To let anyone `docker pull` it without logging in:
+
+1. Go to the package page: `https://github.com/users/RagePeanut/packages/container/package/prioritizarr`
+   (or the repo's **Packages** sidebar entry after the first successful run).
+2. **Package settings → Danger Zone → Change visibility → Public**.
+
+Optionally, under the package's settings, link it to this repository and grant
+the repo **Write** access so future workflow runs can keep pushing.
 
 ## License
 
